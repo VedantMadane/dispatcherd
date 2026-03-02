@@ -4,7 +4,7 @@ import logging
 import threading
 import time
 from typing import Callable, Iterable, Optional, Set, Tuple
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from .config import LazySettings
 from .config import settings as global_settings
@@ -87,6 +87,7 @@ class DispatcherMethod:
         args: Optional[tuple] = None,
         kwargs: Optional[dict] = None,
         uuid: Optional[str] = None,
+        origin: Optional[str] = None,
         bind: bool = False,
         timeout: Optional[float] = 0.0,
         processor_options: Iterable[ProcessorParams] = (),
@@ -97,8 +98,22 @@ class DispatcherMethod:
         If a task is submitted to a multiprocessing pool, skipping pg_notify, this might be used directly
         """
         body = self.publication_defaults()
-        # These params are forced to be set on every submission, can not be generic to task
-        body['uuid'] = uuid or str(uuid4())
+
+        if uuid:
+            try:
+                val = UUID(uuid, version=4)
+                if str(val) != uuid:
+                    raise ValueError
+            except (ValueError, TypeError, AttributeError):
+                logger.warning(f"Invalid UUID4 format provided: {uuid}. Replacing with self-generated UUID4.")
+                uuid = str(uuid4())
+        else:
+            uuid = str(uuid4())
+
+        body['uuid'] = uuid
+
+        if origin:
+            body['origin'] = origin
 
         if args:
             body['args'] = args
@@ -122,6 +137,7 @@ class DispatcherMethod:
         kwargs: Optional[dict] = None,
         queue: str | Callable[..., str] | None = None,
         uuid: Optional[str] = None,
+        origin: Optional[str] = None,
         settings: LazySettings = global_settings,
         bind: bool = False,
         timeout: Optional[float] = 0.0,
@@ -139,7 +155,9 @@ class DispatcherMethod:
         else:
             resolved_queue = queue  # Can still be None if we rely on the broker default channel
 
-        obj = self.get_async_body(args=args, kwargs=kwargs, uuid=uuid, bind=bind, timeout=timeout, processor_options=processor_options)
+        obj = self.get_async_body(
+            args=args, kwargs=kwargs, uuid=uuid, origin=origin, bind=bind, timeout=timeout, processor_options=processor_options
+        )
 
         from dispatcherd.factories import get_publisher_from_settings
 
