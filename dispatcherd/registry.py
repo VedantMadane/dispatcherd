@@ -1,6 +1,5 @@
 import inspect
 import json
-import logging
 import threading
 import time
 from typing import Callable, Iterable, Optional, Set, Tuple
@@ -10,8 +9,6 @@ from .config import LazySettings
 from .config import settings as global_settings
 from .protocols import ProcessorParams
 from .utils import MODULE_METHOD_DELIMITER, DispatcherCallable, resolve_callable
-
-logger = logging.getLogger(__name__)
 
 
 class DispatcherError(RuntimeError):
@@ -105,8 +102,7 @@ class DispatcherMethod:
                 if str(val) != uuid:
                     raise ValueError
             except (ValueError, TypeError, AttributeError):
-                logger.warning(f"Invalid UUID4 format provided: {uuid}. Replacing with self-generated UUID4.")
-                uuid = str(uuid4())
+                raise ValueError(f"Invalid UUID4 format provided: {uuid!r}. Caller must supply a valid uuid4 string.")
         else:
             uuid = str(uuid4())
 
