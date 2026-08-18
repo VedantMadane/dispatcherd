@@ -97,12 +97,20 @@ class DispatcherMethod:
         body = self.publication_defaults()
 
         if uuid:
+            # Fail loudly on invalid input — silent replacement made debugging very hard.
+            # AWX passes uuid4() output (canonical lowercase), which is accepted as-is.
             try:
                 val = UUID(uuid, version=4)
-                if str(val) != uuid:
-                    raise ValueError
-            except (ValueError, TypeError, AttributeError):
-                raise ValueError(f"Invalid UUID4 format provided: {uuid!r}. Caller must supply a valid uuid4 string.")
+            except (ValueError, TypeError, AttributeError) as exc:
+                raise ValueError(
+                    f"Invalid UUID4 format provided: {uuid!r}. Caller must supply a valid uuid4 string."
+                ) from exc
+            # Require canonical lowercase hyphenated form (str(UUID) / uuid4()).
+            if str(val) != uuid:
+                raise ValueError(
+                    f"Invalid UUID4 format provided: {uuid!r}. "
+                    "Caller must supply a canonical uuid4 string."
+                )
         else:
             uuid = str(uuid4())
 
